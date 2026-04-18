@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Qila's Kick Counter</title>
+
+<style>
+    body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial;
+        background: linear-gradient(to bottom, #ffd6e0, #ffffff);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+    }
+
+    .app {
+        width: 90%;
+        max-width: 420px;
+        text-align: center;
+    }
+
+    h1 {
+        font-size: 28px;
+        margin-bottom: 5px;
+    }
+
+    .subtitle {
+        color: #777;
+        margin-bottom: 10px;
+    }
+
+    /* ❤️ HEART PULSE */
+    .heart {
+        font-size: 40px;
+        display: inline-block;
+        animation: pulse 1.5s infinite;
+        margin-bottom: 10px;
+    }
+
+    @keyframes pulse {
+        0% { transform: scale(1); opacity: 0.8; }
+        50% { transform: scale(1.2); opacity: 1; }
+        100% { transform: scale(1); opacity: 0.8; }
+    }
+
+    .card {
+        background: rgba(255,255,255,0.7);
+        backdrop-filter: blur(10px);
+        padding: 20px;
+        border-radius: 20px;
+        margin-bottom: 15px;
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+
+    .timer {
+        font-size: 32px;
+        font-weight: bold;
+    }
+
+    /* 🔢 BOUNCE ANIMATION */
+    .count {
+        font-size: 60px;
+        font-weight: bold;
+        color: #ff4d6d;
+        display: inline-block;
+    }
+
+    .bounce {
+        animation: bounce 0.3s ease;
+    }
+
+    @keyframes bounce {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.4); }
+        100% { transform: scale(1); }
+    }
+
+    button {
+        width: 100%;
+        padding: 15px;
+        border: none;
+        border-radius: 15px;
+        font-size: 18px;
+        margin-top: 10px;
+    }
+
+    .kick-btn {
+        background: #ff4d6d;
+        color: white;
+    }
+
+    .stop-btn {
+        background: #333;
+        color: white;
+    }
+
+    .reset-btn {
+        margin-top: 10px;
+        background: #ff3b30;
+        color: white;
+        width: 100%;
+        padding: 12px;
+        border-radius: 12px;
+        font-size: 16px;
+    }
+
+    .history {
+        text-align: left;
+        margin-top: 10px;
+    }
+
+    .session {
+        padding: 10px;
+        border-bottom: 1px solid #eee;
+    }
+
+    .small {
+        color: #888;
+        font-size: 12px;
+    }
+
+    #message {
+    	margin-top: 10px;
+    	font-size: 14px;
+    	color: #888;
+    	transition: all 0.3s ease;
+    }
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+    <div class="heart">❤️</div>
+
+    <h1>Qila's Kick Counter</h1>
+    <div class="subtitle">For our little one</div>
+
+    <!-- TIMER -->
+    <div class="card">
+        <div class="timer" id="timer">00:00</div>
+        <div class="small">Session Time</div>
+    </div>
+
+    <!-- COUNTER -->
+    <div class="card">
+        <div class="small" id="message">Hi little one 👶💗</div>
+        <div class="count" id="count">0</div>
+        <div class="small">Kicks</div>
+
+        <button class="kick-btn" onclick="addKick()" id="kickBtn">
+            Tap when baby kicks
+        </button>
+    </div>
+
+    <!-- STOP -->
+    <button class="stop-btn" onclick="stopSession()" id="stopBtn" disabled>
+        Stop & Save
+    </button>
+
+    <!-- HISTORY -->
+    <div class="card history">
+        <h3>History</h3>
+        <div id="history"></div>
+
+        <button class="reset-btn" onclick="resetHistory()">
+            Clear History
+        </button>
+    </div>
+</div>
+
+<script>
+let kicks = 0;
+let startTime = null;
+let timerInterval = null;
+let sessionActive = false;
+
+let sessions = JSON.parse(localStorage.getItem("sessions")) || [];
+
+/* ❤️ AUTO START */
+function startSessionAuto() {
+    kicks = 0;
+    startTime = Date.now();
+    sessionActive = true;
+
+    document.getElementById("stopBtn").disabled = false;
+
+    timerInterval = setInterval(updateTimer, 1000);
+}
+
+const messages = [
+    "Hi little one 👶💗",
+    "You’re doing amazing sayang 🌸",
+    "Baby says hello ❤️",
+    "Every kick is a smile ✨",
+    "Growing strong together 💕",
+    "Little kicks, big love 💖",
+    "You’ve got this sayang 🤍",
+    "Tiny miracle in motion 🌷"
+];
+
+function updateMessage() {
+    let msg = document.getElementById("message");
+
+    // change message every 3–5 kicks
+    let index = Math.floor(kicks / 3) % messages.length;
+
+    msg.innerText = messages[index];
+}
+
+/* 🔢 KICK + ANIMATION */
+function addKick() {
+    if (!sessionActive) {
+        startSessionAuto();
+    }
+
+    kicks++;
+    let countEl = document.getElementById("count");
+    countEl.innerText = kicks;
+
+    // RESET + TRIGGER BOUNCE
+    countEl.classList.remove("bounce");
+    void countEl.offsetWidth; // force reflow
+    countEl.classList.add("bounce");
+
+    updateMessage();
+
+    if (navigator.vibrate) {
+        navigator.vibrate(50);
+    }
+}
+
+/* ⏱ TIMER */
+function updateTimer() {
+    let elapsed = Math.floor((Date.now() - startTime) / 1000);
+    let min = String(Math.floor(elapsed / 60)).padStart(2, '0');
+    let sec = String(elapsed % 60).padStart(2, '0');
+    document.getElementById("timer").innerText = `${min}:${sec}`;
+}
+
+/* 🛑 STOP */
+function stopSession() {
+    if (!sessionActive) return;
+
+    clearInterval(timerInterval);
+
+    let duration = Math.floor((Date.now() - startTime) / 1000);
+
+    let session = {
+        date: new Date().toLocaleString(),
+        kicks: kicks,
+        duration: duration
+    };
+
+    sessions.unshift(session);
+    localStorage.setItem("sessions", JSON.stringify(sessions));
+
+    renderHistory();
+
+    sessionActive = false;
+    kicks = 0;
+    startTime = null;
+
+    document.getElementById("count").innerText = "0";
+    document.getElementById("timer").innerText = "00:00";
+    document.getElementById("stopBtn").disabled = true;
+}
+
+/* 📜 HISTORY */
+function renderHistory() {
+    let historyDiv = document.getElementById("history");
+    historyDiv.innerHTML = "";
+
+    sessions.forEach(s => {
+        let div = document.createElement("div");
+        div.className = "session";
+        div.innerHTML = `
+            <b>${s.kicks} kicks</b><br>
+            <span class="small">${formatTime(s.duration)} • ${s.date}</span>
+        `;
+        historyDiv.appendChild(div);
+    });
+}
+
+/* ⏳ FORMAT TIME */
+function formatTime(sec) {
+    let m = Math.floor(sec / 60);
+    let s = sec % 60;
+    return `${m}m ${s}s`;
+}
+
+/* 🗑 RESET */
+function resetHistory() {
+    let confirmReset = confirm("Clear all history?");
+    if (confirmReset) {
+        sessions = [];
+        localStorage.removeItem("sessions");
+        renderHistory();
+    }
+}
+
+/* INIT */
+renderHistory();
+</script>
+
+</body>
+</html>
