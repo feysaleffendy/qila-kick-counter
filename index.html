@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Qila's Kick Counter</title>
 
+<!-- PDF LIBRARY -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
 <style>
     body {
         margin: 0;
@@ -32,7 +35,6 @@
         margin-bottom: 10px;
     }
 
-    /* ❤️ HEART PULSE */
     .heart {
         font-size: 40px;
         display: inline-block;
@@ -60,7 +62,6 @@
         font-weight: bold;
     }
 
-    /* 🔢 BOUNCE ANIMATION */
     .count {
         font-size: 60px;
         font-weight: bold;
@@ -107,6 +108,12 @@
         font-size: 16px;
     }
 
+    .pdf-btn {
+        margin-top: 10px;
+        background: #6c5ce7;
+        color: white;
+    }
+
     .history {
         text-align: left;
         margin-top: 10px;
@@ -123,10 +130,9 @@
     }
 
     #message {
-    	margin-top: 10px;
-    	font-size: 14px;
-    	color: #888;
-    	transition: all 0.3s ease;
+        margin-top: 10px;
+        font-size: 14px;
+        color: #888;
     }
 </style>
 </head>
@@ -148,7 +154,7 @@
 
     <!-- COUNTER -->
     <div class="card">
-        <div class="small" id="message">Hi little one 👶💗</div>
+        <div id="message">Hi little one 👶💗</div>
         <div class="count" id="count">0</div>
         <div class="small">Kicks</div>
 
@@ -170,6 +176,10 @@
         <button class="reset-btn" onclick="resetHistory()">
             Clear History
         </button>
+
+        <button class="pdf-btn" onclick="exportPDF()">
+            Export Hospital Report PDF
+        </button>
     </div>
 </div>
 
@@ -180,17 +190,6 @@ let timerInterval = null;
 let sessionActive = false;
 
 let sessions = JSON.parse(localStorage.getItem("sessions")) || [];
-
-/* ❤️ AUTO START */
-function startSessionAuto() {
-    kicks = 0;
-    startTime = Date.now();
-    sessionActive = true;
-
-    document.getElementById("stopBtn").disabled = false;
-
-    timerInterval = setInterval(updateTimer, 1000);
-}
 
 const messages = [
     "Hi little one 👶💗",
@@ -203,57 +202,59 @@ const messages = [
     "Tiny miracle in motion 🌷"
 ];
 
+/* START */
+function startSessionAuto() {
+    kicks = 0;
+    startTime = Date.now();
+    sessionActive = true;
+
+    document.getElementById("stopBtn").disabled = false;
+
+    timerInterval = setInterval(updateTimer, 1000);
+}
+
+/* MESSAGE */
 function updateMessage() {
     let msg = document.getElementById("message");
-
-    // change message every 3–5 kicks
     let index = Math.floor(kicks / 3) % messages.length;
-
     msg.innerText = messages[index];
 }
 
-/* 🔢 KICK + ANIMATION */
+/* KICK */
 function addKick() {
-    if (!sessionActive) {
-        startSessionAuto();
-    }
+    if (!sessionActive) startSessionAuto();
 
     kicks++;
-    let countEl = document.getElementById("count");
-    countEl.innerText = kicks;
+    let el = document.getElementById("count");
+    el.innerText = kicks;
 
-    // RESET + TRIGGER BOUNCE
-    countEl.classList.remove("bounce");
-    void countEl.offsetWidth; // force reflow
-    countEl.classList.add("bounce");
+    el.classList.remove("bounce");
+    void el.offsetWidth;
+    el.classList.add("bounce");
 
     updateMessage();
 
-    if (navigator.vibrate) {
-        navigator.vibrate(50);
-    }
+    if (navigator.vibrate) navigator.vibrate(50);
 }
 
-/* ⏱ TIMER */
+/* TIMER */
 function updateTimer() {
     let elapsed = Math.floor((Date.now() - startTime) / 1000);
-    let min = String(Math.floor(elapsed / 60)).padStart(2, '0');
-    let sec = String(elapsed % 60).padStart(2, '0');
-    document.getElementById("timer").innerText = `${min}:${sec}`;
+    let m = String(Math.floor(elapsed / 60)).padStart(2,'0');
+    let s = String(elapsed % 60).padStart(2,'0');
+    document.getElementById("timer").innerText = `${m}:${s}`;
 }
 
-/* 🛑 STOP */
+/* STOP */
 function stopSession() {
     if (!sessionActive) return;
 
     clearInterval(timerInterval);
 
-    let duration = Math.floor((Date.now() - startTime) / 1000);
-
     let session = {
         date: new Date().toLocaleString(),
         kicks: kicks,
-        duration: duration
+        duration: Math.floor((Date.now() - startTime) / 1000)
     };
 
     sessions.unshift(session);
@@ -270,37 +271,79 @@ function stopSession() {
     document.getElementById("stopBtn").disabled = true;
 }
 
-/* 📜 HISTORY */
+/* HISTORY */
 function renderHistory() {
-    let historyDiv = document.getElementById("history");
-    historyDiv.innerHTML = "";
+    let div = document.getElementById("history");
+    div.innerHTML = "";
 
     sessions.forEach(s => {
-        let div = document.createElement("div");
-        div.className = "session";
-        div.innerHTML = `
+        let item = document.createElement("div");
+        item.className = "session";
+        item.innerHTML = `
             <b>${s.kicks} kicks</b><br>
             <span class="small">${formatTime(s.duration)} • ${s.date}</span>
         `;
-        historyDiv.appendChild(div);
+        div.appendChild(item);
     });
 }
 
-/* ⏳ FORMAT TIME */
+/* FORMAT */
 function formatTime(sec) {
     let m = Math.floor(sec / 60);
     let s = sec % 60;
     return `${m}m ${s}s`;
 }
 
-/* 🗑 RESET */
+/* RESET */
 function resetHistory() {
-    let confirmReset = confirm("Clear all history?");
-    if (confirmReset) {
+    if (confirm("Clear all history?")) {
         sessions = [];
         localStorage.removeItem("sessions");
         renderHistory();
     }
+}
+
+/* PDF EXPORT (HOSPITAL STYLE) */
+function exportPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    doc.setFont("helvetica","bold");
+    doc.setFontSize(16);
+    doc.text("MATERNAL & FETAL WELLNESS REPORT", 14, 15);
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica","normal");
+    doc.text("Antenatal Kick Count Monitoring System", 14, 22);
+
+    let refId = "KC-" + Math.floor(Math.random()*900000+100000);
+    doc.text("Report ID: " + refId, 145, 15);
+
+    doc.line(14, 26, 196, 26);
+
+    let total = sessions.reduce((a,b)=>a+b.kicks,0);
+
+    doc.text("Total Sessions: " + sessions.length, 14, 40);
+    doc.text("Total Kicks: " + total, 14, 47);
+
+    let y = 60;
+
+    doc.text("Date", 14, y);
+    doc.text("Kicks", 90, y);
+    doc.text("Duration", 140, y);
+
+    y += 10;
+
+    sessions.forEach(s=>{
+        if(y>270){doc.addPage(); y=20;}
+        doc.text(String(s.date),14,y);
+        doc.text(String(s.kicks),90,y);
+        doc.text(formatTime(s.duration),140,y);
+        y+=10;
+    });
+
+    doc.text("End of Report", 14, 280);
+    doc.save("qila-report-" + refId + ".pdf");
 }
 
 /* INIT */
